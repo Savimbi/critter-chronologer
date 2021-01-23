@@ -9,7 +9,7 @@ import java.time.LocalDate;
  * to the database directly.
  */
 public class PetDTO {
-    private long id;
+    private Long id;
     private PetType type;
     private String name;
     private long ownerId;
@@ -32,7 +32,7 @@ public class PetDTO {
         this.name = name;
     }
 
-    public long getOwnerId() {
+    public Long getOwnerId() {
         return ownerId;
     }
 

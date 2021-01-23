@@ -3,10 +3,19 @@ package com.udacity.jdnd.course3.critter.controller;
 import com.udacity.jdnd.course3.critter.dto.CustomerDTO;
 import com.udacity.jdnd.course3.critter.dto.EmployeeDTO;
 import com.udacity.jdnd.course3.critter.dto.EmployeeRequestDTO;
+import com.udacity.jdnd.course3.critter.entity.Customer;
+import com.udacity.jdnd.course3.critter.entity.Employee;
+import com.udacity.jdnd.course3.critter.entity.Pet;
+import com.udacity.jdnd.course3.critter.service.CustomerService;
+import com.udacity.jdnd.course3.critter.service.EmployeeService;
+import com.udacity.jdnd.course3.critter.service.PetService;
+import org.modelmapper.ModelMapper;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.DayOfWeek;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -18,40 +27,97 @@ import java.util.Set;
 @RestController
 @RequestMapping("/user")
 public class UserController {
+    private final EmployeeService employeeService;
+    private final CustomerService customerService;
+    private final PetService petService;
+    private final ModelMapper modelMapper;
+
+    public UserController(EmployeeService employeeService, CustomerService customerService, PetService petService, ModelMapper modelMapper) {
+        this.employeeService = employeeService;
+        this.customerService = customerService;
+        this.petService = petService;
+        this.modelMapper = modelMapper;
+    }
 
     @PostMapping("/customer")
     public CustomerDTO saveCustomer(@RequestBody CustomerDTO customerDTO){
-        throw new UnsupportedOperationException();
+        Customer customer = convertCustomerDTOToCustomer(customerDTO);
+        Customer updated = customerService.saveCustomer(customer);
+        return convertCustomerToCustomerDTO(updated);
     }
 
     @GetMapping("/customer")
     public List<CustomerDTO> getAllCustomers(){
-        throw new UnsupportedOperationException();
+        List<Customer> customers = customerService.getAllCustomers();
+        List<CustomerDTO> customerDTOs = new ArrayList<>();
+        customers.forEach(customer -> customerDTOs.add(convertCustomerToCustomerDTO(customer)));
+        return customerDTOs;
     }
 
     @GetMapping("/customer/pet/{petId}")
     public CustomerDTO getOwnerByPet(@PathVariable long petId){
-        throw new UnsupportedOperationException();
+        Customer customer = customerService.getCustomerByPet(petId);
+        return convertCustomerToCustomerDTO(customer);
     }
 
     @PostMapping("/employee")
     public EmployeeDTO saveEmployee(@RequestBody EmployeeDTO employeeDTO) {
-        throw new UnsupportedOperationException();
+        Employee emp = convertEmployeeDTOToEmployee(employeeDTO);
+        Employee updated = employeeService.saveEmployee(emp);
+        return convertEmployeeToEmployeeDTO(updated);
     }
 
     @PostMapping("/employee/{employeeId}")
     public EmployeeDTO getEmployee(@PathVariable long employeeId) {
-        throw new UnsupportedOperationException();
+        Employee emp = employeeService.getEmployee(employeeId);
+        return convertEmployeeToEmployeeDTO(emp);
     }
 
     @PutMapping("/employee/{employeeId}")
     public void setAvailability(@RequestBody Set<DayOfWeek> daysAvailable, @PathVariable long employeeId) {
-        throw new UnsupportedOperationException();
+        employeeService.updateEmployeeAvailability(daysAvailable, employeeId);
     }
 
     @GetMapping("/employee/availability")
     public List<EmployeeDTO> findEmployeesForService(@RequestBody EmployeeRequestDTO employeeDTO) {
-        throw new UnsupportedOperationException();
+        List<Employee> employees = employeeService.getEmployeeForService(employeeDTO.getSkills(), employeeDTO.getDate().getDayOfWeek());
+        List<EmployeeDTO> employeeDTOs = new ArrayList<>();
+        employees.forEach(emp -> employeeDTOs.add(convertEmployeeToEmployeeDTO(emp)));
+        return employeeDTOs;
+    }
+
+    private EmployeeDTO convertEmployeeToEmployeeDTO(Employee employee) {
+        EmployeeDTO employeeDTO = modelMapper.map(employee, EmployeeDTO.class);
+        employeeDTO.setDaysAvailable(employee.getDaysAvailable().orElse(null));
+        employee.getDaysAvailable().ifPresent(employeeDTO::setDaysAvailable);
+        return employeeDTO;
+    }
+
+    private Employee convertEmployeeDTOToEmployee(EmployeeDTO employeeDTO) {
+        Employee employee = modelMapper.map(employeeDTO, Employee.class);
+        if (employeeDTO.getDaysAvailable() != null) {
+            employee.setDaysAvailable(employeeDTO.getDaysAvailable());
+        }
+        return employee;
+    }
+
+    private CustomerDTO convertCustomerToCustomerDTO(Customer customer) {
+        CustomerDTO customerDTO = modelMapper.map(customer, CustomerDTO.class);
+        customerDTO.setNotes(customer.getNotes().orElse(null));
+        List<Long> petIds = new ArrayList<>();
+        customer.getPet().ifPresent(value -> value.forEach(pet -> petIds.add(pet.getId())));
+        customerDTO.setPetIds(petIds);
+        return customerDTO;
+    }
+
+    private Customer convertCustomerDTOToCustomer(CustomerDTO customerDTO) {
+        Customer customer = modelMapper.map(customerDTO, Customer.class);
+        List<Pet> pet = new ArrayList<>();
+        Optional.ofNullable(customerDTO.getPetIds()).ifPresent(pets -> pets.forEach(it -> {
+            pet.add(petService.getPet(it));
+        }));
+        customer.setPet(pet);
+        return customer;
     }
 
 }
